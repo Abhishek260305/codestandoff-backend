@@ -1,0 +1,39 @@
+type User {
+  id: ID!
+  email: String!
+  username: String!
+  createdAt: String!
+}
+
+type Problem {
+  id: ID!
+  title: String!
+  description: String!
+  difficulty: String!
+  createdAt: String!
+}
+
+type Match {
+  id: ID!
+  player1: User!
+  player2: User
+  status: String!
+  problem: Problem
+  createdAt: String!
+}
+
+type Query {
+  users: [User!]!
+  user(id: ID!): User
+  problems: [Problem!]!
+  problem(id: ID!): Problem
+  matches: [Match!]!
+  match(id: ID!): Match
+}
+
+type Mutation {
+  createUser(email: String!, username: String!): User!
+  createProblem(title: String!, description: String!, difficulty: String!): Problem!
+  createMatch(problemId: ID!): Match!
+}
+
