@@ -1,8 +1,25 @@
 type User {
   id: ID!
   email: String!
-  username: String!
+  firstName: String
+  lastName: String
+  emailVerified: Boolean!
   createdAt: String!
+  updatedAt: String!
+}
+
+type Session {
+  id: ID!
+  userId: ID!
+  token: String!
+  expiresAt: String!
+  createdAt: String!
+}
+
+type AuthPayload {
+  user: User!
+  token: String!
+  expiresAt: String!
 }
 
 type Problem {
@@ -25,6 +42,7 @@ type Match {
 type Query {
   users: [User!]!
   user(id: ID!): User
+  me: User
   problems: [Problem!]!
   problem(id: ID!): Problem
   matches: [Match!]!
@@ -32,7 +50,9 @@ type Query {
 }
 
 type Mutation {
-  createUser(email: String!, username: String!): User!
+  signup(email: String!, password: String!, firstName: String, lastName: String): AuthPayload!
+  login(email: String!, password: String!): AuthPayload!
+  logout: Boolean!
   createProblem(title: String!, description: String!, difficulty: String!): Problem!
   createMatch(problemId: ID!): Match!
 }

@@ -11,14 +11,23 @@ import (
 func Connect() (*sql.DB, error) {
 	host := getEnv("DB_HOST", "localhost")
 	port := getEnv("DB_PORT", "5432")
-	user := getEnv("DB_USER", "postgres")
-	password := getEnv("DB_PASSWORD", "postgres")
+	user := getEnv("DB_USER", "thunderbird")
+	password := getEnv("DB_PASSWORD", "")
 	dbname := getEnv("DB_NAME", "codestandoff")
 
-	psqlInfo := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname,
-	)
+	// Build connection string - handle empty password
+	var psqlInfo string
+	if password == "" {
+		psqlInfo = fmt.Sprintf(
+			"host=%s port=%s user=%s dbname=%s sslmode=disable",
+			host, port, user, dbname,
+		)
+	} else {
+		psqlInfo = fmt.Sprintf(
+			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			host, port, user, password, dbname,
+		)
+	}
 
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
@@ -39,4 +48,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-

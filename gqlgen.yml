@@ -14,3 +14,9 @@ resolver:
   dir: graph
   package: graph
 
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+      - github.com/google/uuid.UUID
+
