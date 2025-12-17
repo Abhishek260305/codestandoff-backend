@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 
+	"codestandoff/backend/app/controllers"
+	"codestandoff/backend/app/workflow"
 	"codestandoff/backend/graph"
-	"codestandoff/backend/graph/generated"
 	"codestandoff/backend/internal/auth"
 	"codestandoff/backend/internal/database"
 	"codestandoff/backend/internal/oauth"
@@ -17,36 +19,6 @@ import (
 )
 
 const defaultPort = "8080"
-
-// cookieResponseWriter wraps the ResponseWriter to capture cookie setting
-type cookieResponseWriter struct {
-	http.ResponseWriter
-	cookies []*http.Cookie
-}
-
-func (w *cookieResponseWriter) SetCookie(cookie *http.Cookie) {
-	w.cookies = append(w.cookies, cookie)
-	http.SetCookie(w.ResponseWriter, cookie)
-}
-
-// responseWriterHandler wraps the GraphQL handler to inject ResponseWriter into context
-type responseWriterHandler struct {
-	handler http.Handler
-}
-
-func (h *responseWriterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Wrap ResponseWriter to capture cookie setting
-	cookieWriter := &cookieResponseWriter{
-		ResponseWriter: w,
-		cookies:        make([]*http.Cookie, 0),
-	}
-
-	ctx := r.Context()
-	ctx = graph.WithResponseWriter(ctx, cookieWriter)
-	ctx = graph.WithRequest(ctx, r)
-	r = r.WithContext(ctx)
-	h.handler.ServeHTTP(cookieWriter, r)
-}
 
 func main() {
 	port := os.Getenv("PORT")
@@ -69,20 +41,23 @@ func main() {
 	// Initialize OAuth handler
 	oauthHandler := oauth.NewHandler(db)
 
+	// Initialize controller
+	controller := controllers.NewPCDGraphQLController(controllers.PCDGraphQLControllerDeps{
+		DB: db,
+	})
+
+	// Initialize workflow
+	wf := workflow.NewPCDGraphQLService(workflow.PCDGraphQLServiceDeps{
+		Controller: controller,
+	})
+
 	// Initialize GraphQL resolver
-	resolver := graph.NewResolver(db)
+	resolver := &graph.Resolver{
+		Workflow: wf,
+	}
 
 	// Create GraphQL server
-	srv := handler.NewDefaultServer(
-		generated.NewExecutableSchema(
-			generated.Config{
-				Resolvers: resolver,
-			},
-		),
-	)
-
-	// Add extension to provide ResponseWriter access
-	srv.Use(graph.ResponseWriterExtension{})
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
 
 	// Setup CORS
 	c := cors.New(cors.Options{
@@ -100,33 +75,29 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	// Create a handler that wraps both CORS and injects ResponseWriter
-	// The order matters: CORS first, then our wrapper
-	corsHandler := c.Handler(srv)
-	wrappedHandler := &responseWriterHandler{
-		handler: corsHandler,
-	}
+	// Middleware to inject request/response into context
+	graphqlHandler := c.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, controllers.ResponseWriterKey, w)
+		ctx = context.WithValue(ctx, controllers.RequestKey, r)
+		r = r.WithContext(ctx)
+		srv.ServeHTTP(w, r)
+	}))
 
-	// GraphQL handler with CORS and ResponseWriter injection
-	graphqlHandler := wrappedHandler
 	playgroundHandler := c.Handler(playground.Handler("GraphQL playground", "/query"))
 
-	// OAuth routes (with CORS) - register these BEFORE the root handler
+	// OAuth routes
 	googleAuthHandler := c.Handler(http.HandlerFunc(oauthHandler.GoogleAuth))
 	googleCallbackHandler := c.Handler(http.HandlerFunc(oauthHandler.GoogleCallback))
 	githubAuthHandler := c.Handler(http.HandlerFunc(oauthHandler.GitHubAuth))
 	githubCallbackHandler := c.Handler(http.HandlerFunc(oauthHandler.GitHubCallback))
 
-	// Register OAuth routes first (more specific routes should be registered before catch-all)
+	// Register routes
 	http.Handle("/auth/google", googleAuthHandler)
 	http.Handle("/auth/google/callback", googleCallbackHandler)
 	http.Handle("/auth/github", githubAuthHandler)
 	http.Handle("/auth/github/callback", githubCallbackHandler)
-
-	// Register GraphQL routes
 	http.Handle("/query", graphqlHandler)
-
-	// Register root handler last (catch-all)
 	http.Handle("/", playgroundHandler)
 
 	log.Printf("Connect to http://localhost:%s/ for GraphQL playground", port)

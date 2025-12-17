@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"os"
 
 	"golang.org/x/oauth2"
@@ -22,6 +23,15 @@ func InitGoogleOAuth() {
 	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
 	if redirectURL == "" {
 		redirectURL = "http://localhost:8080/auth/google/callback"
+	}
+
+	// Log warning if credentials are missing (but don't fail - allow manual testing)
+	if clientID == "" {
+		// Use log.Printf instead of log to avoid import issues
+		fmt.Printf("WARNING: GOOGLE_CLIENT_ID environment variable is not set. Google OAuth will not work.\n")
+	}
+	if clientSecret == "" {
+		fmt.Printf("WARNING: GOOGLE_CLIENT_SECRET environment variable is not set. Google OAuth will not work.\n")
 	}
 
 	googleOAuthConfig = &oauth2.Config{

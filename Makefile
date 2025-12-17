@@ -1,23 +1,21 @@
-all: mod generate
+.PHONY: generate build run clean
 
-mod:
-	go mod tidy
-
+# Generate GraphQL code
 generate:
+	go mod download all
 	go run github.com/99designs/gqlgen generate
 
-graphql:
-	go run github.com/99designs/gqlgen generate
-
+# Build the application
 build:
-	go build ./main.go
+	go build -o bin/server ./main.go
 
+# Run the application
 run:
-	go run ./main.go
+	go run main.go
 
-test:
-	go test ./... -coverprofile coverage.out
-	go tool cover -func coverage.out
+# Clean generated files
+clean:
+	rm -rf bin/
 
-.PHONY: all mod generate graphql build run test
-
+# Generate and build
+all: generate build

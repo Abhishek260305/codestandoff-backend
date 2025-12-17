@@ -63,7 +63,15 @@ func (h *Handler) GoogleAuth(w http.ResponseWriter, r *http.Request) {
 
 	config := auth.GetGoogleOAuthConfig()
 	if config == nil {
+		log.Printf("ERROR: Google OAuth config is nil")
 		http.Error(w, "OAuth not configured", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if ClientID is set
+	if config.ClientID == "" {
+		log.Printf("ERROR: GOOGLE_CLIENT_ID environment variable is not set")
+		http.Error(w, "Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.", http.StatusInternalServerError)
 		return
 	}
 

@@ -1,3 +1,5 @@
+directive @goField(forceResolver: Boolean, name: String) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
 type User {
   id: ID!
   email: String!
@@ -30,6 +32,16 @@ type Problem {
   createdAt: String!
 }
 
+type Question {
+  id: ID!
+  title: String!
+  slug: String!
+  description: String!
+  difficulty: String!
+  topics: [String!]!
+  testCaseCount: Int!
+}
+
 type Match {
   id: ID!
   player1: User!
@@ -39,21 +51,43 @@ type Match {
   createdAt: String!
 }
 
+# Request/Response types for Training
+input GetQuestionsRequest {
+  offset: Int
+  limit: Int
+  search: String
+  difficulty: String
+  topics: [String!]
+  sortBy: String
+  sortOrder: String
+}
+
+type GetQuestionsResponse {
+  questions: [Question!]!
+  totalCount: Int!
+  hasMore: Boolean!
+}
+
 type Query {
-  users: [User!]!
-  user(id: ID!): User
-  me: User
-  problems: [Problem!]!
-  problem(id: ID!): Problem
-  matches: [Match!]!
-  match(id: ID!): Match
+  # Authentication & User Management
+  me: User @goField(forceResolver: true)
+  users: [User!]! @goField(forceResolver: true)
+  user(id: ID!): User @goField(forceResolver: true)
+  
+  # Training (Practice Questions) - flat like plg-crm-dashboard
+  getQuestions(input: GetQuestionsRequest!): GetQuestionsResponse! @goField(forceResolver: true)
+  
+  # Competitive (1v1 Matches)
+  problems: [Problem!]! @goField(forceResolver: true)
+  problem(id: ID!): Problem @goField(forceResolver: true)
+  matches: [Match!]! @goField(forceResolver: true)
+  match(id: ID!): Match @goField(forceResolver: true)
 }
 
 type Mutation {
-  signup(email: String!, password: String!, firstName: String, lastName: String): AuthPayload!
-  login(email: String!, password: String!): AuthPayload!
-  logout: Boolean!
-  createProblem(title: String!, description: String!, difficulty: String!): Problem!
-  createMatch(problemId: ID!): Match!
+  signup(email: String!, password: String!, firstName: String, lastName: String): AuthPayload! @goField(forceResolver: true)
+  login(email: String!, password: String!): AuthPayload! @goField(forceResolver: true)
+  logout: Boolean! @goField(forceResolver: true)
+  createProblem(title: String!, description: String!, difficulty: String!): Problem! @goField(forceResolver: true)
+  createMatch(problemId: ID!): Match! @goField(forceResolver: true)
 }
-
